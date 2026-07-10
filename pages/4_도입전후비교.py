@@ -8,11 +8,14 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📉 프리카스 도입 전·후 비교")
+st.title("📉 Pre-CAS 도입 전·후 비교")
 
 st.markdown("""
-2021년 프리카스(Pre-CAS) 도입을 기준으로
-도입 전(2014~2020)과 도입 후(2021~2024)의
+2021년 **AI 기반 예측치안(Pre-CAS)** 도입을 기준으로
+
+- **도입 전 : 2014~2020**
+- **도입 후 : 2021~2024**
+
 평균 범죄 발생 건수와 변화율을 비교합니다.
 """)
 
@@ -23,7 +26,7 @@ st.divider()
 # -----------------------------
 
 data = {
-    "연도": [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
+    "연도":[2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
     "재산범죄":[86352,90864,86010,82816,89826,96935,105666,91984,98889,107671,125962],
     "강력범죄(폭력)":[34797,38662,39830,38326,37682,38872,35021,30105,32222,30231,28224],
     "강력범죄(흉악)":[4674,5005,5013,5250,5249,5102,5289,5739,6750,6231,5860]
@@ -51,9 +54,9 @@ after = comparison.loc["도입 후"]
 
 change = ((after-before)/before*100).round(2)
 
-st.subheader("📊 도입 전·후 평균 발생 건수")
+st.header("📊 평균 발생 건수")
 
-st.dataframe(comparison,use_container_width=True)
+st.dataframe(comparison, use_container_width=True)
 
 st.divider()
 
@@ -61,24 +64,23 @@ st.divider()
 # KPI
 # -----------------------------
 
-st.subheader("📌 변화율")
+st.header("📌 변화율")
 
-col1,col2,col3 = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
-col1.metric(
-    "재산범죄",
-    f"{change['재산범죄']} %"
-)
+for col, crime in zip(
+    [col1, col2, col3],
+    ["재산범죄", "강력범죄(폭력)", "강력범죄(흉악)"]
+):
+    value = change[crime]
+    delta_color = "inverse" if value < 0 else "normal"
 
-col2.metric(
-    "강력범죄(폭력)",
-    f"{change['강력범죄(폭력)']} %"
-)
-
-col3.metric(
-    "강력범죄(흉악)",
-    f"{change['강력범죄(흉악)']} %"
-)
+    col.metric(
+        crime,
+        f"{value:.2f}%",
+        delta=f"{value:.2f}%",
+        delta_color=delta_color
+    )
 
 st.divider()
 
@@ -86,21 +88,28 @@ st.divider()
 # 변화율 그래프
 # -----------------------------
 
+st.header("📈 변화율 비교")
+
 change_df = pd.DataFrame({
-    "범죄유형":change.index,
-    "변화율":change.values
+    "범죄유형": change.index,
+    "변화율": change.values
 })
 
 fig = px.bar(
     change_df,
     x="범죄유형",
     y="변화율",
-    color="변화율",
     text="변화율",
-    title="프리카스 도입 전후 평균 변화율"
+    color="변화율",
+    title="Pre-CAS 도입 전·후 평균 변화율"
 )
 
-st.plotly_chart(fig,use_container_width=True)
+fig.update_traces(
+    texttemplate="%{text:.2f}%",
+    textposition="outside"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -108,19 +117,39 @@ st.divider()
 # 평균 비교 그래프
 # -----------------------------
 
+st.header("📊 평균 발생 건수 비교")
+
 compare_df = comparison.T.reset_index()
 
-compare_df.columns=["범죄유형","도입 전","도입 후"]
+compare_df.columns = ["범죄유형", "도입 전", "도입 후"]
 
 fig2 = px.bar(
     compare_df,
     x="범죄유형",
-    y=["도입 전","도입 후"],
+    y=["도입 전", "도입 후"],
     barmode="group",
-    title="도입 전·후 평균 발생 건수 비교"
+    text_auto=".0f",
+    title="도입 전·후 평균 발생 건수"
 )
 
-st.plotly_chart(fig2,use_container_width=True)
+st.plotly_chart(fig2, use_container_width=True)
+
+st.divider()
+
+# -----------------------------
+# 결과 요약
+# -----------------------------
+
+st.header("📋 결과 요약")
+
+summary = pd.DataFrame({
+    "범죄 유형": change.index,
+    "도입 전 평균": before.values.round(1),
+    "도입 후 평균": after.values.round(1),
+    "변화율(%)": change.values
+})
+
+st.dataframe(summary, use_container_width=True, hide_index=True)
 
 st.divider()
 
@@ -128,42 +157,51 @@ st.divider()
 # 자동 해석
 # -----------------------------
 
-st.subheader("📝 분석 결과")
+st.header("🤖 분석 결과")
 
 for crime in change.index:
 
-    if change[crime] < 0:
-        st.success(
-            f"✅ {crime} : {abs(change[crime])}% 감소"
-        )
+    value = change[crime]
 
-    elif change[crime] > 0:
-        st.warning(
-            f"⚠️ {crime} : {change[crime]}% 증가"
-        )
+    if value < 0:
+
+        st.success(f"""
+### ✅ {crime}
+
+- 평균 발생 건수 **{abs(value):.2f}% 감소**
+- 도입 후 감소 경향이 나타남
+- 선제적 치안 활동의 긍정적 효과 가능성
+""")
 
     else:
-        st.info(
-            f"{crime} : 변화 없음"
-        )
+
+        st.warning(f"""
+### ⚠️ {crime}
+
+- 평균 발생 건수 **{value:.2f}% 증가**
+- Pre-CAS만으로 감소 효과를 설명하기 어려움
+- 사회·경제적 요인도 함께 고려해야 함
+""")
 
 st.divider()
 
-st.subheader("📖 종합 해석")
+# -----------------------------
+# 종합 평가
+# -----------------------------
+
+st.header("📝 종합 평가")
 
 st.info("""
-본 분석 결과,
+이번 분석에서는 **Pre-CAS 도입 이후 범죄 유형별 변화가 서로 다르게 나타났습니다.**
 
-프리카스 도입 이후 일부 범죄는 감소하였으나
-재산범죄는 증가하는 경향을 보였다.
+- 재산범죄는 증가하는 경향을 보였습니다.
+- 강력범죄(폭력)는 감소하는 경향을 보였습니다.
+- 강력범죄(흉악)는 증가하는 경향을 보였습니다.
 
-따라서 프리카스가 모든 범죄를 감소시켰다고 단정하기는 어렵다.
+따라서 AI 기반 예측치안이 모든 범죄를 감소시켰다고 단정하기는 어렵습니다.
 
-또한 범죄 발생은
-코로나19,
-사회·경제적 변화,
-인구 변화,
-경찰 인력 운영 등
-다양한 요인의 영향을 받을 수 있으므로
-AI 기반 예측치안만으로 결과를 설명하는 데에는 한계가 있다.
+다만 특정 범죄에서는 예방 효과가 나타났을 가능성이 있으며,
+향후 더 장기간의 데이터와 다른 지역 사례를 함께 분석할 필요가 있습니다.
 """)
+
+st.success("➡ 다음 페이지에서는 분석 결과를 종합하여 AI 기반 예측치안의 효과와 한계를 평가합니다.")
